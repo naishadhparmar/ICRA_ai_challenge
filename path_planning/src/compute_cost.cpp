@@ -12,6 +12,7 @@ typedef struct node{
     pair<double, double> key;
     double rhs;
     double g;
+    int visited;
     node* bptr;
 }node;
 
@@ -108,7 +109,7 @@ double computeCost(node* s,node* sa, node* sb){//Keep in mind that the total pat
 
 pair<double, double> key(node* s) {
     double h = sqrt((s->x - start->x)*(s->x - start->x) + (s->y - start->y)*(s->y - start->y))/2
-    return make_pair(min(s->g, s->rhs) + h, min(s->g, s->rhs));
+	return make_pair(min(s->g, s->rhs) + h, min(s->g, s->rhs));
 }
 
 vector<node*> open;
@@ -151,7 +152,7 @@ void computeShortestPath() {
 	node* s = open[0]; //5
 	if(s->g > s->rhs) { //6
 	    s->g = s->rhs //7
-	    open.erase(open.begin()); //8
+		open.erase(open.begin()); //8
 	    node* s1;
 	    node* s2;
 	    for(int i = -1 ; i < 2 ; i++) {
@@ -159,7 +160,11 @@ void computeShortestPath() {
 		    if(!(i == 0 && j == 0)) {
 			if(s->x+i < vec.size() && s->x+i >= 0 && s->y+j < vec[s->x+i].size() && s->y+j > 0) {
 			    s1 = vec[s->x+i][s->y+j];
-			    //TODO 10, 11
+			    if(!s1->visited) {
+				s1->g = 1000000.0;
+				s1->rhs = 1000000.0;
+				s1->visited = 1;
+			    }
 			    double rhsold = s1->rhs; //12
 			    double cost = computeCost(s1, s, determineNeighbour(s1, s, 0));
 			    if(s1->rhs > cost){ //13
@@ -213,14 +218,14 @@ void computeShortestPath() {
 					else { //32
 					    node* skk;
 					    double mink;
-					    for(int i = -1 ; i < 2 ; i++) {
-						for(int j = -1 ; j < 2 ; j++) {
-						    if(!(i == 0 && j == 0)) {
-							if(s1->x+i < vec.size() && s1->x+i >= 0 && s1->y+j < vec[s1->x+i].size() && s1->y+j > 0) {
-							    double cost = computeCost(s1, vec[s1->x+i][s1->y+j], determineNeighbour(s1, vec[s1->x+i][s1->y+j], 0));
+					    for(int i1 = -1 ; i1 < 2 ; i++) {
+						for(int j1 = -1 ; j1 < 2 ; j++) {
+						    if(!(i1 == 0 && j1 == 0)) {
+							if(s1->x+i1 < vec.size() && s1->x+i1 >= 0 && s1->y+j1 < vec[s1->x+i1].size() && s1->y+j1 > 0) {
+							    double cost = computeCost(s1, vec[s1->x+i1][s1->y+j1], determineNeighbour(s1, vec[s1->x+i1][s1->y+j1], 0));
 							    if(cost < min) {
 								mink = cost;
-								skk = vec[s1->x+i][s1->y+j];
+								skk = vec[s1->x+i1][s1->y+j1];
 							    }
 							}
 						    }
@@ -242,7 +247,86 @@ void computeShortestPath() {
     }
 }
 
+void updateCellCost(node* x, double c) {
+    if(c > s->cost) { //37
+	for(int i = -1 ; i < 2 ; i++) {
+	    for(int j = -1 ; j < 2 ; j++) {
+		if(i == 0 && j == 0) {
+		    if(x->x+i < vec.size() && x->x+i >= 0 && x->y+j < vec[x->x+i].size() && x->y+j > 0) {
+			node* s = vec[x->x+i][x->y+j]; //38
+			node* s2 = determineNeighbour(s, s->bptr, 0);
+			if((abs(s->bptr->x-x->x) == 1 && abs(s->bptr->y-x->y) == 1) || (abs(s2->x-x->x) == 1 && abs(s2->y-x->y) == 1)) {  //39
+			    if(s->rhs != computeCost(s, s->bptr, s2)) { //40
+				if(s->g < s->rhs || searchInOpen(s) == -1) { //41
+				    s->rhs = 1000000.0; //42
+				    updateState(s); //43
+				}
+				else { //44
+				    node* skk;
+				    double mink = 0.0;
+				    for(int i1 = -1 ; i1 < 2 ; i1++) {
+					for(int j1 = -1 ; j1 < 2 ; j1++) {
+					    if(!(i1 == 0 && j1 == 0)) {
+						if(s->x+i1 < vec.size() && s->x+i1 >= 0 && s->y+j1 < vec[s->x+i1].size() && s->y+j1 > 0) {
+						    double cost = computeCost(s, vec[s->x+i1][s->y+j1], determineNeighbour(s, vec[s->x+i1][s->y+j1], 0));
+						    if(cost < min) {
+							mink = cost;
+							skk = vec[s->x+i1][s->y+j1];
+						    }
+						}
+					    }
+					}
+				    }
+				    s->rhs = mink; //45
+				    s->bptr = skk; //46
+				    updateState(s); //47
+				}
+			    }
+			}
+		    }
+		}
+	    }
+	}
+    }
+    else { //48
+	double rhsmin = 1000000.0;
+	node* s1;
+	for(int i = -1 ; i < 2 ; i++) {
+	    for(int j = -1 ; j < 2 ; j++) {
+		if(i == 0 && j == 0) {
+		    if(x->x+i < vec.size() && x->x+i >= 0 && x->y+j < vec[x->x+i].size() && x->y+j > 0) {
+			node* s = vec[x->x+i][x->y+j]; //49
+			if(!s->visited) { //51
+			    s->g = 1000000.0; //51
+			    s->rhs = 1000000.0; //51
+			}
+			else if(s->rhs < rhsmin) { //52
+			    rhsmin = s->rhs; //53
+			    s1 = s; //53
+			}
+		    }
+		}
+	    }
+	}
+	if(rhsmin < 1000000.0 && s1 != NULL) { //54
+	    s1->key = key(s1);
+	    insertInOpen(s1); //55
+	}
+    }
+}
+
+node* goal;
+
 int main(){
-    node s,sa,sb;//Three points in the graph among which s is the starting point taking inputs for x,y and cost for each node.
-    compute_cost(s,sa,sb);
+    start->g = 1000000.0; //56
+    start->rhs = 1000000.0; //56
+    goal->g = 1000000.0; //56
+    goal->g = 0.0; //57
+    open = vector<node>(); //57
+    goal->key = key(goal);
+    insertIntoOpen(goal); //58
+    while(ros::ok()) { //59
+	computeShortestPath(); //60
+	//TODO 61 62 63
+    }
 }
